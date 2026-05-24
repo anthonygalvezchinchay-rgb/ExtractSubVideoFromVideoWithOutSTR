@@ -261,9 +261,13 @@ async def init_video_session(job_id: str):
         _active_caches[job_id] = OCRCacheManager(cache_path)
 
     decoder = _active_decoders[job_id]
+    meta = decoder.get_metadata()
+    # Override metadata to be 1 frame per second (1 FPS)
+    meta["total_frames"] = max(1, int(meta["duration_sec"]))
+    meta["fps"] = 1.0
     return {
         "job_id": job_id,
-        "video": decoder.get_metadata(),
+        "video": meta,
     }
 
 
@@ -274,10 +278,12 @@ async def get_video_frame(job_id: str, frame_idx: int):
     if not decoder:
         raise HTTPException(404, "Session no activa. Usa /api/video/session/{job_id} primero.")
 
+    # Map 1-FPS frame index (seconds) to physical frame index
+    physical_frame_idx = int(round(frame_idx * decoder.fps))
     try:
-        frame_bgr, timestamp = decoder.get_frame(frame_idx)
+        frame_bgr, timestamp = decoder.get_frame(physical_frame_idx)
     except Exception as e:
-        raise HTTPException(500, f"Error decodificando frame {frame_idx}: {e}")
+        raise HTTPException(500, f"Error decodificando frame {frame_idx} (fisico {physical_frame_idx}): {e}")
 
     # Encode as JPEG and stream
     import cv2
@@ -316,11 +322,12 @@ async def ocr_process_frame(payload: dict):
     if not decoder:
         raise HTTPException(404, "Session no activa.")
 
-    # Decode frame
+    # Decode frame (mapping 1-FPS frame index to physical frame index)
+    physical_frame_idx = int(round(frame_idx * decoder.fps))
     try:
-        frame_bgr, timestamp = decoder.get_frame(frame_idx)
+        frame_bgr, timestamp = decoder.get_frame(physical_frame_idx)
     except Exception as e:
-        raise HTTPException(500, f"Error decodificando frame: {e}")
+        raise HTTPException(500, f"Error decodificando frame {frame_idx} (fisico {physical_frame_idx}): {e}")
 
     # Crop region
     h, w = frame_bgr.shape[:2]
@@ -374,6 +381,74 @@ async def ocr_process_frame(payload: dict):
         cache.flush()
 
     return result
+
+
+@app.post("/api/ocr/preview-crop")
+async def preview_crop(payload: dict):
+    """
+    Devuelve la imagen exacta (preprocesada) que MangaOCR recibe antes de reconocer.
+    Permite diagnosticar visualmente si el problema es la imagen o el modelo OCR.
+    """
+    import cv2
+
+    job_id = payload.get("job_id")
+    frame_idx = payload.get("frame_idx", 0)
+    region = payload.get("region")
+
+    decoder = _active_decoders.get(job_id)
+    if not decoder:
+        raise HTTPException(404, "Session no activa.")
+
+    physical_frame_idx = int(round(frame_idx * decoder.fps))
+    try:
+        frame_bgr, _ = decoder.get_frame(physical_frame_idx)
+    except Exception as e:
+        raise HTTPException(500, f"Error decodificando frame: {e}")
+
+    h, w = frame_bgr.shape[:2]
+    if region and len(region) == 4:
+        y1 = int(region[0] * h); x1 = int(region[1] * w)
+        y2 = int(region[2] * h); x2 = int(region[3] * w)
+        crop = frame_bgr[max(0, y1):min(h, y2), max(0, x1):min(w, x2)]
+    else:
+        crop = frame_bgr
+
+    if crop.size == 0:
+        raise HTTPException(400, "Región vacía.")
+
+    # ── Reproduce EXACTLY the MangaOCR preprocessing pipeline ───────────────
+    h_c, w_c = crop.shape[:2]
+    TARGET_H = 64
+    if h_c < TARGET_H:
+        scale = TARGET_H / h_c
+        crop = cv2.resize(crop, (int(w_c * scale), TARGET_H), interpolation=cv2.INTER_CUBIC)
+    elif h_c > 120:
+        scale = 80 / h_c
+        crop = cv2.resize(crop, (int(w_c * scale), 80), interpolation=cv2.INTER_AREA)
+
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    _, mask_v = cv2.threshold(hsv[:, :, 2], 180, 255, cv2.THRESH_BINARY)
+    lab = cv2.cvtColor(crop, cv2.COLOR_BGR2LAB)
+    _, mask_l = cv2.threshold(lab[:, :, 0], 175, 255, cv2.THRESH_BINARY)
+    mask = cv2.bitwise_or(mask_v, mask_l)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    fill_ratio = cv2.countNonZero(mask) / (mask.shape[0] * mask.shape[1])
+    if fill_ratio > 0.02:
+        clean_bgr = cv2.cvtColor(cv2.bitwise_not(mask), cv2.COLOR_GRAY2BGR)
+    else:
+        clean_bgr = crop  # fallback to original color crop
+
+    clean_bgr = cv2.copyMakeBorder(clean_bgr, 10, 10, 10, 10,
+                                    cv2.BORDER_CONSTANT, value=(255, 255, 255))
+    # Scale up 3x for easy visual inspection
+    h_out, w_out = clean_bgr.shape[:2]
+    clean_bgr = cv2.resize(clean_bgr, (w_out * 3, h_out * 3), interpolation=cv2.INTER_NEAREST)
+
+    _, buf = cv2.imencode(".png", clean_bgr)
+    from fastapi.responses import Response
+    return Response(content=buf.tobytes(), media_type="image/png")
 
 
 @app.post("/api/subtitle/save-job")

@@ -342,6 +342,28 @@ function setupWorkspace() {
     // OCR
     $('#btn-ocr').addEventListener('click', triggerOCR);
 
+    // Preview preprocessed image that MangaOCR receives
+    $('#btn-preview-crop').addEventListener('click', async () => {
+        const payload = {
+            job_id: state.jobId,
+            frame_idx: state.currentFrame,
+            region: state.region
+        };
+        try {
+            const resp = await fetch(`${API}/ocr/preview-crop`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!resp.ok) { alert('Error obteniendo preview. ¿Hay un frame cargado?'); return; }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
+    });
+
     // Commit Subtitle
     $('#btn-save-sub').addEventListener('click', commitSubtitleBlock);
 
@@ -391,10 +413,20 @@ function renderActiveBlockTiming() {
     $('#active-out').textContent = formatTimeVal(state.activeBlock.endFrame);
 }
 
-// ─── OCR On-Demand trigger ──────────────────────────────────────────────────
 async function triggerOCR() {
     $('#btn-ocr').disabled = true;
     $('#btn-ocr').textContent = '🔍 Buscando...';
+
+    // Update config from UI inputs
+    state.ocrConfig.engine = $('#sel-ocr-engine').value;
+    state.ocrConfig.preprocessing = {
+        upscale: $('#chk-upscale').checked,
+        denoise: $('#chk-denoise').checked,
+        contrast: $('#chk-contrast').checked,
+        sharpen: $('#chk-sharpen').checked,
+        binarize: $('#chk-binarize').checked,
+        padding: $('#chk-padding').checked
+    };
 
     try {
         const payload = {

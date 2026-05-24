@@ -372,3 +372,62 @@ body {
 /* Hidden utilities */
 .hidden { display: none !important; }
 kbd { font-family: var(--font-mono); }
+
+.ocr-settings {
+    padding: 12px;
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.ocr-settings h4 {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+.setting-item input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--accent-primary);
+}
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.settings-row select {
+    background: rgba(0,0,0,0.3);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+}
+
+.btn-preview {
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    background: rgba(251, 191, 36, 0.08);
+    color: #fbbf24;
+    font-size: 11px;
+}
+.btn-preview:hover { background: rgba(251, 191, 36, 0.2); }

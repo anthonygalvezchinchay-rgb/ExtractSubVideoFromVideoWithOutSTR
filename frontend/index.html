@@ -111,6 +111,9 @@
                     <button id="btn-ocr" class="btn btn-ocr" title="Detect Subtitle Text (D)">
                         <span class="key-hint">D</span> 🔍 Detect Text
                     </button>
+                    <button id="btn-preview-crop" class="btn btn-preview" title="Ver imagen que recibe el OCR">
+                        👁 Ver Imagen OCR
+                    </button>
                     <button id="btn-play" class="btn btn-play" title="Play/Pause (Space)">▶</button>
                     <button id="btn-save-sub" class="btn btn-primary btn-save" title="Save Subtitle (Enter)">
                         <span class="key-hint">↵</span> Save Subtitle
@@ -139,6 +142,41 @@
                     <div class="sub-meta">
                         <span id="ocr-confidence" class="confidence-badge">—</span>
                         <span id="ocr-cached" class="cache-badge hidden">⚡ Cache</span>
+                    </div>
+                </div>
+
+                <!-- OCR Settings Panel -->
+                <div class="ocr-settings glass-card">
+                    <h4>Filtros Preprocesamiento OCR</h4>
+                    <div class="settings-grid">
+                        <label class="setting-item">
+                            <input type="checkbox" id="chk-upscale" checked> Auto Upscale
+                        </label>
+                        <label class="setting-item">
+                            <input type="checkbox" id="chk-denoise" checked> Denoise
+                        </label>
+                        <label class="setting-item">
+                            <input type="checkbox" id="chk-contrast"> Contraste CLAHE
+                        </label>
+                        <label class="setting-item">
+                            <input type="checkbox" id="chk-sharpen"> Sharpen
+                        </label>
+                        <label class="setting-item">
+                            <input type="checkbox" id="chk-binarize"> Binarizar
+                        </label>
+                        <label class="setting-item">
+                            <input type="checkbox" id="chk-padding" checked> Margen (Padding)
+                        </label>
+                    </div>
+                    <div class="settings-row" style="margin-top: 6px;">
+                        <label>Motor OCR:</label>
+                        <select id="sel-ocr-engine">
+                            <option value="auto">Auto (MangaOCR / Paddle)</option>
+                            <option value="manga_ocr">MangaOCR (Solo JP)</option>
+                            <option value="paddleocr">PaddleOCR</option>
+                            <option value="easyocr">EasyOCR</option>
+                            <option value="tesseract">Tesseract</option>
+                        </select>
                     </div>
                 </div>
             </div>

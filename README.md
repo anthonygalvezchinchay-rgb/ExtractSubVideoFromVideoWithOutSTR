@@ -28,7 +28,7 @@ An interactive, human-assisted subtitle extraction and authoring tool optimized 
 ### Quick Start
 1. Clone this repository:
    ```bash
-   git clone https://github.com/anthonygalvezchinchay-rgb/ExtractSubVideoFromVideoWithOutSTR.git
+   git clone https://github.com/nosehon/ExtractSubVideoFromVideoWithOutSTR.git
    cd ExtractSubVideoFromVideoWithOutSTR
    ```
 

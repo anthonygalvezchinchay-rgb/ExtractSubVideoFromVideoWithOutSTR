@@ -342,20 +342,72 @@ class OCREngine:
             return {"text": "", "confidence": 0.0, "lines": []}
 
     def _recognize_manga_ocr(self, image: np.ndarray) -> dict:
-        """OCR con MangaOCR (vision transformer optimised for Japanese manga/anime)."""
+        """OCR con MangaOCR con preprocesamiento dedicado para subtítulos de anime.
+
+        Pipeline:
+          1. Escala la imagen para que el texto tenga ~48-80px de alto (sweet-spot del modelo).
+          2. Extrae el texto brillante (blanco/amarillo) mediante umbral en el canal V (HSV)
+             y en luminosidad (LAB), combinando ambas máscaras.
+          3. Produce una imagen limpia blanco-sobre-negro invertida a negro-sobre-blanco.
+          4. Agrega un borde blanco (padding) para que el modelo no corte bordes.
+          5. Si la máscara está muy vacía, cae de vuelta a la imagen original a color.
+        """
         try:
             import cv2
             from PIL import Image as PILImage
-            # MangaOCR expects an RGB PIL Image
-            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+            h, w = image.shape[:2]
+
+            # ── 1. Normalizar altura ─────────────────────────────────────────
+            TARGET_H = 64  # altura ideal para MangaOCR
+            if h < TARGET_H:
+                scale = TARGET_H / h
+                image = cv2.resize(image, (int(w * scale), TARGET_H), interpolation=cv2.INTER_CUBIC)
+            elif h > 120:
+                scale = 80 / h
+                image = cv2.resize(image, (int(w * scale), 80), interpolation=cv2.INTER_AREA)
+
+            # ── 2. Extraer píxeles de texto brillante (blanco/amarillo) ──────
+            # Canal V de HSV → detecta píxeles muy brillantes (texto blanco)
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            _, mask_v = cv2.threshold(hsv[:, :, 2], 180, 255, cv2.THRESH_BINARY)
+
+            # Canal L de LAB → detecta píxeles claros (texto blanco/amarillo claro)
+            lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            _, mask_l = cv2.threshold(lab[:, :, 0], 175, 255, cv2.THRESH_BINARY)
+
+            # Combinar máscaras y limpiar ruido con morfología
+            mask = cv2.bitwise_or(mask_v, mask_l)
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+            # ── 3. Evaluar calidad de máscara ────────────────────────────────
+            fill_ratio = cv2.countNonZero(mask) / (mask.shape[0] * mask.shape[1])
+
+            if fill_ratio > 0.02:
+                # Imagen limpia: texto negro sobre fondo blanco (lo que MangaOCR espera)
+                clean = cv2.bitwise_not(mask)
+                clean_bgr = cv2.cvtColor(clean, cv2.COLOR_GRAY2BGR)
+            else:
+                # Fallback: usar imagen a color si la máscara no capturó suficiente texto
+                logger.debug("MangaOCR: máscara muy vacía, usando imagen original")
+                clean_bgr = image
+
+            # ── 4. Padding blanco ────────────────────────────────────────────
+            clean_bgr = cv2.copyMakeBorder(clean_bgr, 10, 10, 10, 10,
+                                            cv2.BORDER_CONSTANT, value=(255, 255, 255))
+
+            # ── 5. Enviar a MangaOCR ─────────────────────────────────────────
+            rgb = cv2.cvtColor(clean_bgr, cv2.COLOR_BGR2RGB)
             pil_img = PILImage.fromarray(rgb)
             text = self._ocr(pil_img)
+
             lines = []
             if text and text.strip():
                 for line in text.strip().split("\n"):
                     if line.strip():
-                        lines.append({"text": line.strip(), "confidence": 0.90})
-            confidence = 0.90 if text else 0.0
+                        lines.append({"text": line.strip(), "confidence": 0.92})
+            confidence = 0.92 if text and text.strip() else 0.0
             return {
                 "text": _post_process_text(text),
                 "confidence": confidence,

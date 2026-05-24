@@ -14,11 +14,18 @@ import numpy as np
 # ── Standalone Filter Functions ────────────────────────────────────────────
 
 def upscale_image(image: np.ndarray, factor: float = 2.0) -> np.ndarray:
-    """Upscale an image by *factor* using cubic interpolation."""
-    if factor <= 1.0:
-        return image
+    """Upscale an image dynamically to normalize the text size for optimal OCR (target height ~60px)."""
     h, w = image.shape[:2]
-    return cv2.resize(image, (int(w * factor), int(h * factor)), interpolation=cv2.INTER_CUBIC)
+    # If the crop is already large (height >= 60px), do not upscale further as it degrades OCR accuracy
+    if h >= 60:
+        return image
+    
+    # Calculate a dynamic scale factor targeting ~60px height
+    dynamic_factor = max(1.0, min(factor, 60.0 / h))
+    if dynamic_factor <= 1.0:
+        return image
+        
+    return cv2.resize(image, (int(w * dynamic_factor), int(h * dynamic_factor)), interpolation=cv2.INTER_CUBIC)
 
 
 def denoise_image(image: np.ndarray, h: int = 10) -> np.ndarray:

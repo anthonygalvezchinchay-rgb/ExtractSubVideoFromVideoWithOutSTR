@@ -50,7 +50,7 @@ def write_srt(blocks: list[dict], output_path: str) -> str:
     for i, block in enumerate(blocks, 1):
         start = _seconds_to_srt_time(block["start_sec"])
         end = _seconds_to_srt_time(block["end_sec"])
-        text = block.get("text_translated", block["text"])
+        text = block.get("text_translated") or block["text"]
         lines.append(f"{i}")
         lines.append(f"{start} --> {end}")
         lines.append(text)
@@ -78,7 +78,7 @@ def write_vtt(blocks: list[dict], output_path: str) -> str:
     for block in blocks:
         start = _seconds_to_vtt_time(block["start_sec"])
         end = _seconds_to_vtt_time(block["end_sec"])
-        text = block.get("text_translated", block["text"])
+        text = block.get("text_translated") or block["text"]
         lines.append(f"{start} --> {end}")
         lines.append(text)
         lines.append("")
@@ -103,7 +103,7 @@ def write_sbv(blocks: list[dict], output_path: str) -> str:
     for block in blocks:
         start = _seconds_to_sbv_time(block["start_sec"])
         end = _seconds_to_sbv_time(block["end_sec"])
-        text = block.get("text_translated", block["text"])
+        text = block.get("text_translated") or block["text"]
         lines.append(f"{start},{end}")
         lines.append(text)
         lines.append("")
@@ -206,7 +206,7 @@ def write_ass(blocks: list[dict], output_path: str) -> str:
     for block in blocks:
         start = _secs_to_ass(block["start_sec"])
         end = _secs_to_ass(block["end_sec"])
-        text = block.get("text_translated", block["text"]).replace("\n", "\\N")
+        text = (block.get("text_translated") or block["text"]).replace("\n", "\\N")
         lines.append(f"Dialogue: 0,{start},{end},Default,,0,0,0,,{text}")
 
     content = "\n".join(lines) + "\n"
