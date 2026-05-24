@@ -532,6 +532,7 @@ async def export_subtitles(job_id: str, fmt: str):
         generated[fmt],
         filename=os.path.basename(generated[fmt]),
         media_type="application/octet-stream",
+        content_disposition_type="attachment"
     )
 
 
