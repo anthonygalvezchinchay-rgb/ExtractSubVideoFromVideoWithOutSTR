@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SubtitleForge — Subtitle Authoring Studio</title>
+    <meta name="description" content="Interactive subtitle authoring tool for anime and hardcoded subtitle extraction. Frame-exact navigation, on-demand OCR, keyboard-driven workflow.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- ═══ Header ═══ -->
+    <header id="app-header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">🎬</span>
+                <span class="logo-text">SubtitleForge</span>
+                <span class="logo-badge">Studio</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="mode-switcher">
+                <button id="btn-mode-manual" class="mode-btn active" title="Manual Assist Mode">🎯 Manual</button>
+                <button id="btn-mode-auto" class="mode-btn" title="Auto Batch Mode (Legacy)">⚡ Auto</button>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-badges">
+                <span id="badge-ocr" class="badge badge-neutral" title="OCR Engine">
+                    <span class="badge-dot"></span>
+                    <span class="badge-label">OCR</span>
+                </span>
+                <span id="badge-translate" class="badge badge-neutral" title="LibreTranslate">
+                    <span class="badge-dot"></span>
+                    <span class="badge-label">Traducción</span>
+                </span>
+            </div>
+            <button id="btn-shortcuts" class="btn btn-icon" title="Keyboard Shortcuts">⌨️</button>
+        </div>
+    </header>
+
+    <!-- ═══ Upload Screen ═══ -->
+    <section id="section-upload" class="section active">
+        <div class="upload-hero">
+            <h1>Abre tu video</h1>
+            <p class="section-subtitle">Arrastra un archivo o haz clic para comenzar el subtitulado</p>
+
+            <div id="upload-zone" class="upload-zone">
+                <div class="upload-zone-content">
+                    <div class="upload-icon">📁</div>
+                    <p class="upload-text">Arrastra tu video aquí</p>
+                    <p class="upload-hint">o haz clic para seleccionar</p>
+                    <p class="upload-formats">MP4, AVI, MKV, MOV, WebM</p>
+                </div>
+                <input type="file" id="file-input" accept=".mp4,.avi,.mkv,.mov,.webm,.m4v,.flv,.wmv" hidden>
+            </div>
+
+            <div id="upload-progress" class="upload-progress hidden">
+                <div class="progress-info">
+                    <span id="upload-filename" class="progress-filename"></span>
+                    <span id="upload-percent" class="progress-percent">0%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div id="upload-bar" class="progress-bar"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ Authoring Workspace ═══ -->
+    <section id="section-workspace" class="section hidden">
+
+        <div class="workspace-grid">
+            <!-- LEFT: Video Player + Canvas -->
+            <div class="pane-video glass-card">
+                <div class="video-canvas-wrapper">
+                    <canvas id="video-canvas"></canvas>
+                    <!-- Bounding box overlay is drawn on canvas -->
+                    <div id="region-info" class="region-info hidden">
+                        <span id="region-coords"></span>
+                    </div>
+                </div>
+
+                <!-- Frame Controls -->
+                <div class="frame-controls">
+                    <div class="frame-nav">
+                        <button id="btn-prev-10" class="btn btn-sm" title="⟪ 10 frames (Shift+Z)">⟪</button>
+                        <button id="btn-prev" class="btn btn-sm" title="← Prev frame (Z)">◂</button>
+                        <span id="frame-display" class="frame-display">
+                            <span id="current-frame">0</span> / <span id="total-frames">0</span>
+                        </span>
+                        <button id="btn-next" class="btn btn-sm" title="→ Next frame (X)">▸</button>
+                        <button id="btn-next-10" class="btn btn-sm" title="⟫ 10 frames (Shift+X)">⟫</button>
+                    </div>
+                    <div class="frame-time">
+                        <span id="current-time" class="time-display">00:00:00.000</span>
+                    </div>
+                </div>
+
+                <!-- Timing + OCR Actions -->
+                <div class="action-strip">
+                    <button id="btn-set-in" class="btn btn-timing btn-in" title="Set Subtitle Start (A)">
+                        <span class="key-hint">A</span> Start
+                    </button>
+                    <button id="btn-set-out" class="btn btn-timing btn-out" title="Set Subtitle End (S)">
+                        <span class="key-hint">S</span> End
+                    </button>
+                    <button id="btn-ocr" class="btn btn-ocr" title="Detect Subtitle Text (D)">
+                        <span class="key-hint">D</span> 🔍 Detect Text
+                    </button>
+                    <button id="btn-play" class="btn btn-play" title="Play/Pause (Space)">▶</button>
+                    <button id="btn-save-sub" class="btn btn-primary btn-save" title="Save Subtitle (Enter)">
+                        <span class="key-hint">↵</span> Save Subtitle
+                    </button>
+                    <button id="btn-next-sub" class="btn btn-secondary" title="Next Subtitle">
+                        Next Subtitle
+                    </button>
+                </div>
+
+                <!-- Active Subtitle Status -->
+                <div class="active-sub-status glass-card">
+                    <div class="sub-timing">
+                        <span class="label">Start:</span>
+                        <span id="active-in" class="value">—</span>
+                        <span class="label">End:</span>
+                        <span id="active-out" class="value">—</span>
+                    </div>
+                    <div class="sub-text-row">
+                        <label>Texto:</label>
+                        <input type="text" id="active-text" class="sub-text-input" placeholder="Texto del subtítulo...">
+                    </div>
+                    <div class="sub-text-row">
+                        <label>Traducción:</label>
+                        <input type="text" id="active-translation" class="sub-text-input" placeholder="Traducción (Ctrl+T)...">
+                    </div>
+                    <div class="sub-meta">
+                        <span id="ocr-confidence" class="confidence-badge">—</span>
+                        <span id="ocr-cached" class="cache-badge hidden">⚡ Cache</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Subtitle List -->
+            <div class="pane-subtitles glass-card">
+                <div class="pane-header">
+                    <h3>Subtítulos</h3>
+                    <span id="subtitle-count" class="count-badge">0</span>
+                </div>
+                <div id="subtitle-list" class="subtitle-list">
+                    <p class="empty-message">Sin subtítulos aún. Usa <kbd>A</kbd>/<kbd>S</kbd> para marcar tiempos y <kbd>D</kbd> para OCR.</p>
+                </div>
+                <div class="pane-footer">
+                    <div class="export-row">
+                        <button class="btn btn-sm btn-export" data-format="srt">📄 SRT</button>
+                        <button class="btn btn-sm btn-export" data-format="vtt">🌐 VTT</button>
+                        <button class="btn btn-sm btn-export" data-format="ass">🎨 ASS</button>
+                        <button class="btn btn-sm btn-export" data-format="json">📊 JSON</button>
+                    </div>
+                    <button id="btn-save-session" class="btn btn-sm btn-secondary">💾 Guardar Sesión</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM: Timeline -->
+        <div class="pane-timeline glass-card">
+            <div class="timeline-header">
+                <span class="timeline-label">Timeline</span>
+                <span id="timeline-info" class="timeline-info">0 bloques</span>
+            </div>
+            <div id="timeline-canvas-wrapper" class="timeline-canvas-wrapper">
+                <canvas id="timeline-canvas"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ Shortcuts Modal ═══ -->
+    <div id="shortcuts-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <h3>⌨️ Atajos de Teclado</h3>
+            <div class="shortcuts-grid">
+                <div class="shortcut"><kbd>Z</kbd> <span>Frame anterior</span></div>
+                <div class="shortcut"><kbd>X</kbd> <span>Frame siguiente</span></div>
+                <div class="shortcut"><kbd>Shift+Z</kbd> <span>10 frames atrás</span></div>
+                <div class="shortcut"><kbd>Shift+X</kbd> <span>10 frames adelante</span></div>
+                <div class="shortcut"><kbd>A</kbd> <span>Marcar IN</span></div>
+                <div class="shortcut"><kbd>S</kbd> <span>Marcar OUT</span></div>
+                <div class="shortcut"><kbd>D</kbd> <span>OCR frame actual</span></div>
+                <div class="shortcut"><kbd>Enter</kbd> <span>Guardar subtítulo</span></div>
+                <div class="shortcut"><kbd>Space</kbd> <span>Play / Pause</span></div>
+                <div class="shortcut"><kbd>Ctrl+T</kbd> <span>Traducir línea</span></div>
+                <div class="shortcut"><kbd>Ctrl+S</kbd> <span>Guardar sesión</span></div>
+                <div class="shortcut"><kbd>Esc</kbd> <span>Cerrar modal</span></div>
+            </div>
+            <button id="btn-close-modal" class="btn btn-sm btn-secondary">Cerrar</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

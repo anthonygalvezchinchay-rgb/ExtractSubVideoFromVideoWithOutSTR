@@ -1,0 +1,42 @@
+schema:spec-driven
+
+# Project context and architectural conventions
+context: |
+  Tech Stack:
+    - Backend: FastAPI (>=0.110.0), Uvicorn (>=0.29.0), WebSockets, asyncio, threading.
+    - Frontend: Vanilla HTML5, CSS3 (using Custom Properties and glassmorphism), ES6+ JavaScript. Single-page application (SPA) structure: `index.html`, `styles.css`, `app.js`. No build steps or frontend frameworks.
+    - Key Libraries: PaddleOCR, EasyOCR, PyTesseract (OCREngine wrapper), OpenCV (opencv-python-headless), scikit-image (structural similarity index - SSIM), pysrt, lingua-language-detector.
+    - Translation: Optional local LibreTranslate integration.
+
+  Architecture Patterns:
+    - Service / Pipeline Layer: Orchestrated by `SubtitleProcessor` (`processor.py`), which executes a 10-stage sequential pipeline:
+      1. `analyzing` (technical video analysis & quality score calculation via `modules/video_analyzer.py` / ffprobe)
+      2. `detecting_zone` (auto-detect subtitle region using frame sampling in `modules/subtitle_detector.py`)
+      3. `extracting` / `preprocessing` (streaming frame decoding via `modules/frame_extractor.py` and real-time cropping / quality filtering in `modules/preprocessor.py`)
+      4. `detecting_changes` (compares consecutive frames using SSIM in `modules/change_detector.py`)
+      5. `ocr` (text recognition on change frames using unified `OCREngine` in `modules/ocr_engine.py`)
+      6. `detecting_language` (linguistic analysis to optionally re-initialize `OCREngine` with proper dictionary)
+      7. `grouping` (assembling timeline blocks with start/end timestamps)
+      8. `translating` (optional LibreTranslate API integration)
+      9. `writing` (writes outputs to multiple file formats via `modules/srt_writer.py`)
+      10. `writing` (translated versions export)
+    - Background Workers: Thread-based asynchronous execution model using Python's native `threading.Thread` and managed by memory-bound `JobManager` (`job_manager.py`). Includes thread safety via `threading.Lock` and supports job cancellation.
+    - WebSocket Progress Manager: Real-time channel route in `server.py` (`@app.websocket("/ws/{job_id}")`) utilizing an `asyncio.Queue` and thread-safe callbacks (`loop.call_soon_threadsafe`) registered to the `JobManager` to stream live percentage and stage logs to the client.
+    - Memory & CPU Optimization:
+      - Limits PyTorch/OpenMP thread counts to 1 (via env vars in `ocr_engine.py`) to prevent low-end system crashes.
+      - Uses frame-by-frame streaming and immediate cropping to minimize RAM usage, keeping garbage collection (`gc.collect()`) active.
+
+  Conventions:
+    - Keep pipeline steps encapsulated in modular single-responsibility files inside `modules/`.
+    - Avoid exposing heavy OCR initializations or video loading on the main event loop; run them inside the `JobManager` background worker.
+    - Maintain standard local file paths (`uploads`, `output`, `temp`) configured inside `config.py`.
+    - Keep frontend design consistent (Inter/JetBrains Mono fonts, dark theme, smooth transitions, custom properties) inside vanilla CSS/JS.
+
+# Per-artifact rules
+rules:
+  proposal:
+    - Ensure any proposal respects the single-user, memory-based background task architecture.
+    - Keep technical details highly accurate with respect to OpenCV, OCREngine, and WebSocket managers.
+  walkthrough:
+    - Always emphasize performance impacts (memory usage, thread configurations, streaming pipelines).
+    - Ensure new frontend additions do not introduce build tools or JS frameworks.

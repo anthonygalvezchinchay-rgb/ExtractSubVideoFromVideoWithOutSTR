@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+venv/
+.venv/
+env/
+.env
+
+# Project specific
+uploads/
+output/
+temp/
+.agent/
+.mypy_cache/
+.codex/
+
+# OS files
+.DS_Store
+Thumbs.db
